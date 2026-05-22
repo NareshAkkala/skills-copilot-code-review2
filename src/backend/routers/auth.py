@@ -35,11 +35,13 @@ def login(username: str, password: str) -> Dict[str, Any]:
 @router.get("/check-session")
 def check_session(username: str) -> Dict[str, Any]:
     """Check if a session is valid by username"""
+    # Teacher records use username as MongoDB _id for fast direct lookup.
     teacher = teachers_collection.find_one({"_id": username})
 
     if not teacher:
         raise HTTPException(status_code=404, detail="Teacher not found")
 
+    # Return only public profile fields needed by the frontend session state.
     return {
         "username": teacher["username"],
         "display_name": teacher["display_name"],

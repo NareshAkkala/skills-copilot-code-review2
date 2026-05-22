@@ -28,7 +28,7 @@ def get_activities(
     - start_time: Filter activities starting at or after this time (24-hour format, e.g., '14:30')
     - end_time: Filter activities ending at or before this time (24-hour format, e.g., '17:00')
     """
-    # Build the query based on provided filters
+    # Build a MongoDB query dynamically from optional request filters.
     query = {}
 
     if day:
@@ -40,7 +40,7 @@ def get_activities(
     if end_time:
         query["schedule_details.end_time"] = {"$lte": end_time}
 
-    # Query the database
+    # Convert MongoDB _id to object key expected by the frontend payload shape.
     activities = {}
     for activity in activities_collection.find(query):
         name = activity.pop('_id')
@@ -89,12 +89,13 @@ def signup_for_activity(activity_name: str, email: str, teacher_username: Option
         raise HTTPException(
             status_code=400, detail="Already signed up for this activity")
 
-    # Add student to participants
+    # Perform an atomic array append for safe concurrent updates.
     result = activities_collection.update_one(
         {"_id": activity_name},
         {"$push": {"participants": email}}
     )
 
+    # modified_count should be 1 when the document is successfully updated.
     if result.modified_count == 0:
         raise HTTPException(
             status_code=500, detail="Failed to update activity")
@@ -125,12 +126,13 @@ def unregister_from_activity(activity_name: str, email: str, teacher_username: O
         raise HTTPException(
             status_code=400, detail="Not registered for this activity")
 
-    # Remove student from participants
+    # Perform an atomic array removal for safe concurrent updates.
     result = activities_collection.update_one(
         {"_id": activity_name},
         {"$pull": {"participants": email}}
     )
 
+    # modified_count should be 1 when the document is successfully updated.
     if result.modified_count == 0:
         raise HTTPException(
             status_code=500, detail="Failed to update activity")
